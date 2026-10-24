@@ -24,62 +24,50 @@ jobs:
           # 1. Clone UniXNU
           git clone --depth 1 https://github.com/UniXNU/UniXNU.git /tmp/unixnu_repo
           cp -r /tmp/unixnu_repo/package/UniXNUPkg ./UniXNUPkg
+          cp -r /tmp/unixnu_repo/package/UniXNUPkg ./Silicon/Silicium/UniXNUPkg
 
           # 2. Patch UniXNU Config.c to set Redmi Turbo 4 Pro builtin menu
           python3 -c '
-          path = "UniXNUPkg/Library/UniXNULib/Config.c"
-          with open(path, "r", encoding="utf-8") as f:
-              code = f.read()
-          old = code[code.find("STATIC CONST CHAR8  mBuiltinConfig[]"):code.find("STATIC\nVOID\nConfigError")]
-          new = """STATIC CONST CHAR8  mBuiltinConfig[] =
-            "version = 1\\n"
-            "[boot]\\n"
-            "timeout = 10\\n"
-            "rotate = 0\\n"
-            "[ui]\\n"
-            "title = \\"UniXNU - Redmi Turbo 4 Pro\\"\\n"
-            "[[entry]]\\n"
-            "id = \\"xnu\\"\\n"
-            "title = \\"Darwin / XNU (SM8735)\\"\\n"
-            "type = \\"action\\"\\n"
-            "action = \\"exit\\"\\n"
-            "[[entry]]\\n"
-            "id = \\"fw\\"\\n"
-            "title = \\"Return to UEFI Firmware\\"\\n"
-            "type = \\"action\\"\\n"
-            "action = \\"exit\\"\\n"
-            "[[entry]]\\n"
-            "id = \\"reset\\"\\n"
-            "title = \\"Restart System\\"\\n"
-            "type = \\"action\\"\\n"
-            "action = \\"reset\\"\\n"
-            "[[entry]]\\n"
-            "id = \\"shutdown\\"\\n"
-            "title = \\"Power Off\\"\\n"
-            "type = \\"action\\"\\n"
-            "action = \\"shutdown\\"\\n";
+          for p in ["UniXNUPkg/Library/UniXNULib/Config.c", "Silicon/Silicium/UniXNUPkg/Library/UniXNULib/Config.c"]:
+              with open(p, "r", encoding="utf-8") as f:
+                  code = f.read()
+              old = code[code.find("STATIC CONST CHAR8  mBuiltinConfig[]"):code.find("STATIC\nVOID\nConfigError")]
+              new = """STATIC CONST CHAR8  mBuiltinConfig[] =
+                "version = 1\\n"
+                "[boot]\\n"
+                "timeout = 10\\n"
+                "rotate = 0\\n"
+                "[ui]\\n"
+                "title = \\"UniXNU - Redmi Turbo 4 Pro\\"\\n"
+                "[[entry]]\\n"
+                "id = \\"xnu\\"\\n"
+                "title = \\"Darwin / XNU (SM8735)\\"\\n"
+                "type = \\"action\\"\\n"
+                "action = \\"exit\\"\\n"
+                "[[entry]]\\n"
+                "id = \\"fw\\"\\n"
+                "title = \\"Return to UEFI Firmware\\"\\n"
+                "type = \\"action\\"\\n"
+                "action = \\"exit\\"\\n"
+                "[[entry]]\\n"
+                "id = \\"reset\\"\\n"
+                "title = \\"Restart System\\"\\n"
+                "type = \\"action\\"\\n"
+                "action = \\"reset\\"\\n"
+                "[[entry]]\\n"
+                "id = \\"shutdown\\"\\n"
+                "title = \\"Power Off\\"\\n"
+                "type = \\"action\\"\\n"
+                "action = \\"shutdown\\"\\n";
 
-          """
-          code = code.replace(old, new, 1)
-          with open(path, "w", encoding="utf-8") as f:
-              f.write(code)
+              """
+              code = code.replace(old, new, 1)
+              with open(p, "w", encoding="utf-8") as f:
+                  f.write(code)
           print("Updated UniXNULib Config.c with onyx builtin menu!")
           '
 
-          # 3. Add root to PackagesPath in DeviceBuild.py
-          python3 -c '
-          path = "Platforms/Xiaomi/onyxPkg/DeviceBuild.py"
-          with open(path, "r", encoding="utf-8") as f:
-              code = f.read()
-          target = "\"Platforms/Xiaomi\","
-          replacement = "\"Platforms/Xiaomi\",\n        \".\","
-          code = code.replace(target, replacement, 1)
-          with open(path, "w", encoding="utf-8") as f:
-              f.write(code)
-          print("Patched DeviceBuild.py PackagesPath!")
-          '
-
-          # 4. Add UniXNULib & UniXNU.inf to onyx.dsc
+          # 3. Add UniXNULib & UniXNU.inf to onyx.dsc
           python3 -c '
           path = "Platforms/Xiaomi/onyxPkg/onyx.dsc"
           with open(path, "r", encoding="utf-8") as f:
@@ -91,18 +79,20 @@ jobs:
           print("Patched onyx.dsc with UniXNU components!")
           '
 
-          # 5. Add UniXNU.inf to onyx.fdf
+          # 4. Add UniXNU.inf to onyx.fdf in valid position
           python3 -c '
           path = "Platforms/Xiaomi/onyxPkg/onyx.fdf"
           with open(path, "r", encoding="utf-8") as f:
               code = f.read()
-          code = code.replace("[FV.FvMain]", "[FV.FvMain]\n  INF UniXNUPkg/Application/UniXNU/UniXNU.inf", 1)
+          target = "INF SiliciumPkg/Drivers/RamManagerDxe/RamManagerDxe.inf"
+          replacement = "INF SiliciumPkg/Drivers/RamManagerDxe/RamManagerDxe.inf\n  INF UniXNUPkg/Application/UniXNU/UniXNU.inf"
+          code = code.replace(target, replacement, 1)
           with open(path, "w", encoding="utf-8") as f:
               f.write(code)
           print("Patched onyx.fdf with UniXNU.inf!")
           '
 
-          # 6. Add MsBootOptionsLibGetUniXNU to MsBootOptionsLib.c
+          # 5. Add MsBootOptionsLibGetUniXNU to MsBootOptionsLib.c
           python3 -c '
           path = "Silicon/Silicium/SiliciumPkg/Library/MsBootOptionsLib/MsBootOptionsLib.c"
           with open(path, "r", encoding="utf-8") as f:
@@ -124,7 +114,7 @@ jobs:
           print("Added MsBootOptionsLibGetUniXNU to MsBootOptionsLib.c!")
           '
 
-          # 7. Add UniXNU to PlatformBootOptions.c
+          # 6. Add UniXNU to PlatformBootOptions.c
           python3 -c '
           path = "Silicon/Qualcomm/QcomPkg/Library/PlatformBootOptionsLib/PlatformBootOptions.c"
           with open(path, "r", encoding="utf-8") as f:
@@ -161,7 +151,7 @@ jobs:
           print("Added UniXNU to PlatformBootOptions.c!")
           '
 
-          # 8. Patch BootManager.c to boot UniXNU
+          # 7. Patch BootManager.c to auto-boot UniXNU
           python3 -c '
           path = "Silicon/Silicium/SiliciumPkg/Library/BootManagerLib/BootManager.c"
           with open(path, "r", encoding="utf-8") as f:
