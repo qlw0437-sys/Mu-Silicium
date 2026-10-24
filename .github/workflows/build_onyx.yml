@@ -1,0 +1,30 @@
+name: Build onyx UEFI
+on:
+  workflow_dispatch:
+  push:
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Setup Build Environment
+        run: |
+          sudo bash ./setup_env.sh -p apt
+
+      - name: Build onyx UEFI
+        run: |
+          python3 ./build_uefi.py -d onyx -r DEBUG -c
+          python3 ./build_uefi.py -d onyx -r RELEASE -c
+
+      - name: Upload Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: Mu-onyx-build
+          path: |
+            Mu-onyx*
+            Build/onyxPkg/*/FV/SILICIUM_UEFI.fd
