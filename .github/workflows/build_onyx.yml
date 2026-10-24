@@ -14,7 +14,10 @@ jobs:
 
       - name: Setup Build Environment
         run: |
-          sudo bash ./setup_env.sh -p apt
+          sudo apt update
+          sudo apt install -y mono-devel build-essential lld uuid-dev nasm gcc-aarch64-linux-gnu python3 python3-git python3-pip gettext locales gnupg ca-certificates python3-venv git git-core clang llvm curl lld
+          pip install --ignore-installed --break-system-packages -r pip-requirements.txt
+          echo "CLANGPDB_AARCH64_PREFIX=aarch64-linux-gnu-" >> $GITHUB_ENV
 
       - name: Build onyx UEFI
         run: |
