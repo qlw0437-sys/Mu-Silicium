@@ -19,34 +19,46 @@ jobs:
           pip install --ignore-installed --break-system-packages -r pip-requirements.txt
           echo "CLANGPDB_AARCH64_PREFIX=aarch64-linux-gnu-" >> $GITHUB_ENV
 
+      - name: Patch BootManager to Auto-Launch Menu on No-OS
+        run: |
+          python3 -c '
+          path = "Silicon/Silicium/SiliciumPkg/Library/BootManagerLib/BootManager.c"
+          with open(path, "r", encoding="utf-8") as f:
+              code = f.read()
+
+          target = "gRT->ResetSystem (EfiResetShutdown, EFI_SUCCESS, 0, NULL);"
+          replacement = """EFI_BOOT_MANAGER_LOAD_OPTION LoadOption;
+            if (!EFI_ERROR (MsBootOptionsLibGetBootManagerMenu (&LoadOption, NULL))) {
+              EfiBootManagerBoot (&LoadOption);
+              EfiBootManagerFreeLoadOption (&LoadOption);
+            }
+            gRT->ResetSystem (EfiResetShutdown, EFI_SUCCESS, 0, NULL);"""
+
+          if target in code:
+              code = code.replace(target, replacement, 1)
+              with open(path, "w", encoding="utf-8") as f:
+                  f.write(code)
+              print("Successfully patched BootManager.c!")
+          else:
+              print("Target string not found in BootManager.c")
+          '
+
       - name: Prepare UEFI Shell Payload Ramdisk
         run: |
-          # 1. Download official AArch64 UEFI Shell
           curl -sL https://github.com/pbatard/UEFI-Shell/releases/download/26H2/shellaa64.efi -o shellaa64.efi
-          
-          # 2. Create 16MB FAT16 ESP volume
           truncate -s 16M payload.img
           mkfs.vfat -F 16 -n "ONYXESP" payload.img
-          
-          # 3. Create EFI directories and copy bootloader
           mmd -i payload.img ::EFI
           mmd -i payload.img ::EFI/BOOT
           mmd -i payload.img ::EFI/UniXNU
           mcopy -i payload.img shellaa64.efi ::EFI/BOOT/BOOTAA64.EFI
-          
-          # 4. Add startup script
           cat << 'EOF' > startup.nsh
           @echo -off
           echo ========================================================
           echo   Redmi Turbo 4 Pro (onyx) UEFI Shell Active!
-          echo   SoC: Qualcomm SM8735 (Snapdragon 8s Gen 4)
-          echo   Display: 1280x2772 @ 120Hz SimpleFB
           echo ========================================================
-          echo.
           EOF
           mcopy -i payload.img startup.nsh ::startup.nsh
-          
-          # 5. Inject as ramdisk for mkbootimg
           cp payload.img Resources/ramdisk
 
       - name: Build onyx UEFI
